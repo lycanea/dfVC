@@ -41,8 +41,13 @@ function computeVolume(distance) {
 }
 
 // Front-end routes
-// app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'root.html')));
+// Rooms list
+app.get('/api/rooms', (req, res) => {
+	res.json(Object.keys(rooms));
+});
+// the actual... yk... page
 app.get('/:roomId/:userId', (req, res) => res.sendFile(path.join(__dirname, 'public', 'thingy.html')));
+
 
 // DiamondFire position updates
 app.post('/api/update', (req, res) => {
@@ -79,11 +84,6 @@ app.post('/api/update', (req, res) => {
 		io.to(targetInfo.socketId).emit('username-update', usernames);
 	}
 	res.json({ ok: true });
-});
-
-// Rooms list
-app.get('/api/rooms', (req, res) => {
-	res.json(Object.keys(rooms));
 });
 
 io.on('connection', socket => {
