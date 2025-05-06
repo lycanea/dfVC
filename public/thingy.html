@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Voice Chat</title>
+	<style>
+		body { font-family: sans-serif; padding: 20px; text-align: center; }
+		ul { list-style: none; padding: 0; }
+		li { padding: 4px 0; }
+		.hidden { display: none; }
+		.userListInnerDiv { background-color: rgb(156, 235, 238); display: inline-block; margin: 30px; padding: 0px 10px 10px 10px;}
+	</style>
+</head>
+<body>
+	<div id="chatView" class="hidden">
+		<h1>Room: <span id="roomId"></span></h1>
+		<p>Hello there, <span id="userId"></span>!</p>
+		<button id="muteBtn">Unmute</button>
+		<div class="userListDiv">
+			<div class="userListInnerDiv">
+				<h2>Other Users:</h2>
+				<ul id="userList"></ul>
+			</div>
+		</div>
+	</div>
+
+	<script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+	<script src="https://unpkg.com/simple-peer/simplepeer.min.js"></script>
+	<script>
+	(async () => {
+		const socket = io();
+		const path = window.location.pathname.split('/').filter(Boolean);
+		const chatView = document.getElementById('chatView');
+
+		const [roomId, userId] = path;
+		chatView.classList.remove('hidden');
+		document.getElementById('roomId').textContent = roomId;
+		document.getElementById('userId').textContent = userId;
+
+		// Audio
+		const localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+		localStream.getAudioTracks()[0].enabled = false;
+		document.getElementById('muteBtn').addEventListener('click', () => {
+			const track = localStream.getAudioTracks()[0];
+			track.enabled = !track.enabled;
+			document.getElementById('muteBtn').textContent = track.enabled ? 'Mute' : 'Unmute';
+		});
+
+		const audioParams = {
+			innerRadius: 0,
+			outerRadius: 20,
+			falloffExponent: 1.5
+		}
+		function computeVolume(distance) {
+			const { innerRadius, outerRadius, falloffExponent } = audioParams;
+			if (distance <= innerRadius) return 1;
+			if (distance >= outerRadius) return 0;
+			const t = (distance - innerRadius) / (outerRadius - innerRadius);
+			return 1 - Math.pow(t, falloffExponent);
+		}
+
+		// State
+		const peers = {};
+		const audioEls = {};
+		let currentUsers = [];
+		let usernames = {};
+
+		function updateUserList() {
+			document.getElementById('userId').textContent = `${usernames[userId]}(${userId})`;
+			const ul = document.getElementById('userList');
+			ul.innerHTML = '';
+			currentUsers.forEach(id => {
+				if (id === userId) return; // skip yourself
+				const li = document.createElement('li');
+				li.textContent = `${usernames[id]}(${id})`;
+				ul.appendChild(li);
+			});
+		}
+
+		function connect(id, initiator) {
+			if (peers[id]) return;
+			console.log(`peer connected ${id}`)
+			const peer = new SimplePeer({ initiator, trickle: false, stream: localStream });
+			peers[id] = peer;
+			peer.on('signal', sig => socket.emit('signal', { roomId, targetId: id, callerId: userId, signal: sig }));
+			peer.on('stream', stream => {
+				console.log("stream connected")
+				const audio = document.createElement('audio');
+				audio.autoplay = true;
+				audio.srcObject = stream;
+				document.body.appendChild(audio);
+				audioEls[id] = audio;
+			});
+		}
+
+		// Socket events
+		socket.emit('join', { roomId, userId });
+		socket.on('join-error', msg => alert(msg));
+		socket.on('all-users', users => {
+			currentUsers = [userId, ...users];
+			updateUserList();
+			users.forEach(id => connect(id, true));
+		});
+		socket.on('user-joined', id => {
+			currentUsers.push(id);
+			updateUserList();
+			connect(id, false);
+		});
+		socket.on('user-left', id => {
+			currentUsers = currentUsers.filter(x => x !== id);
+			updateUserList();
+			if (peers[id]) { peers[id].destroy(); delete peers[id]; }
+			if (audioEls[id]) delete audioEls[id];
+		});
+		socket.on('signal', ({ callerId, signal }) => {
+			if (peers[callerId]) peers[callerId].signal(signal);
+		});
+		socket.on('volume-update', volumes => {
+			for (const id in audioEls) {
+				const vol = volumes[id] || 0;
+				audioEls[id].volume = vol;
+			}
+			updateUserList(volumes);
+		});
+		socket.on('username-update', usernamesSent => {
+			usernames = usernamesSent;
+			console.log(usernames)
+			updateUserList();
+		});
+	})();
+	</script>
+</body>
+</html>
