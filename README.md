@@ -21,3 +21,4 @@ This instance will be ran by me (hopefully forever), any df plot can use the df-
 ## potentially planned but idk:
 - TEMPORARY plot voice recording and playback (with player consent) (think that one SCP in secret lab)
 - more plotside features outside of voicechat, having sounds play to players etc
+- change the whole system to be fully serversided voice chat instead of peer to peer, more secure for people, kind of inherently has "anticheat" but may have latency issues... look into it, maybe a seperate branch?
