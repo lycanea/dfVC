@@ -3,6 +3,11 @@ const http = require('http');
 const path = require('path');
 const { Server } = require('socket.io');
 
+// honestly i think i should rewrite the whole backend based on this version cause this is just kind of a mess now
+// imo the frontend serving, the api and the voicechat websocket server should be different files
+// working with multiple files running async is weird though, api effects websocket and stuff so idk
+// if rewrite, make it bun and typescript
+
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
@@ -136,5 +141,5 @@ io.on('connection', socket => {
 	});
 });
 
-const PORT = process.env.PORT || 8008;
+const PORT = process.env.PORT || 8008; // boob :3
 server.listen(PORT, () => console.log(`Server listening on http://localhost:${PORT}`));
