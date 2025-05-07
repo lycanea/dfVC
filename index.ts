@@ -1,13 +1,15 @@
 import infoPage from "./public/index.html";
 import type { Server } from "bun";
+import api from './api.ts'
 
-console.log("reload")
+console.log("running on 8008")
 
 const server: Server = Bun.serve({
 	port: 8008,
 	routes: {
 		"/": infoPage,
-		"/test": new Response("OK")
+		"/test": new Response("OK"),
+		...api.endpoints
 	},
 
 	fetch(req, server) {
