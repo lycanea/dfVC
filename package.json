@@ -11,5 +11,9 @@
   "scripts": {
     "start": "bun run index.ts"
   },
-  "type": "module"
+  "type": "module",
+  "dependencies": {
+    "@types/jsonwebtoken": "^9.0.9",
+    "jsonwebtoken": "^9.0.2"
+  }
 }
