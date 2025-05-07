@@ -28,7 +28,7 @@ test("GET / should return 200", async () => {
 });
 
 test("GET /test should return OK", async () => {
-	const res = await fetch("http://localhost:8008/test");
+	const res = await fetch("http://localhost:8008/health");
 	expect(res.status).toBe(200);
 	expect(await res.text()).toBe("OK");
 });

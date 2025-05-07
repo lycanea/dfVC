@@ -8,7 +8,7 @@ const server: Server = Bun.serve({
 	port: 8008,
 	routes: {
 		"/": infoPage,
-		"/test": new Response("OK"),
+		"/health": new Response("OK"),
 		...api.endpoints
 	},
 
