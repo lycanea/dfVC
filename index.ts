@@ -1,11 +1,26 @@
-const express = require('express')
-const app = express()
-const port = 8008 // boobs
+import infoPage from "./public/index.html";
+import type { Server } from "bun";
 
-app.get('/', (req, res) => {
-	res.send('Hello World!')
-})
+console.log("reload")
 
-app.listen(port, () => {
-	console.log(`Example app listening on port ${port}`)
-})
+const server: Server = Bun.serve({
+	port: 8008,
+	routes: {
+		"/": infoPage,
+		"/test": new Response("OK")
+	},
+
+	fetch(req, server) {
+		if (server.upgrade(req)) {
+			return;
+		}
+		return new Response("Upgrade failed", { status: 500 });
+	},
+	websocket: {
+		message(ws, message) {
+			ws.send(message);
+		}
+	},
+});
+
+export { server };
