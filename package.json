@@ -11,5 +11,8 @@
   },
   "scripts": {
     "start": "bun run index.ts"
+  },
+  "dependencies": {
+    "express": "^5.1.0"
   }
 }
