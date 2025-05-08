@@ -2,7 +2,7 @@ import infoPage from "./public/index.html";
 import type { Server } from "bun";
 import api from './api.ts'
 
-console.log("running on 8008")
+console.log("running on http://localhost:8008")
 
 const server: Server = Bun.serve({
 	port: 8008,

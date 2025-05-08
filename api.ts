@@ -3,11 +3,20 @@ import jwt, { type JwtPayload } from "jsonwebtoken";
 const validDFIps = ['51.222.245.229'];
 let tokens = {} // uhh just an in memory token thingy nothing to see here... this ruins the point of jwt
 
+function getKeyByValue(object, value) {
+	return Object.keys(object).find(key => object[key] === value);
+}
+
 let endpoints = {
 	// okay so input will be like token&asd=123,123,123&silly=456,456,456&meow=27,6,3
 	"/api/v1/update/:input": (req: Request) => {
-		console.log(req.params.input)
-		return new Response(`${req.params.input}`);
+		if (!headers['x-forwarded-for'] || !validDFIps.includes(headers['x-forwarded-for'])) return new Response("Unauthorised");
+		const splitInput = req.params.input.split('&')
+		const token = splitInput[0]
+		const plotId = getKeyByValue(tokens, token);
+		if (!plotId) return new Response("Unauthorised");
+		console.log(`update req from ${plotId}`)
+		return new Response();
 	},
 	"/api/v1/init": (req: Request) => {
 		const headers = req.headers.toJSON()
