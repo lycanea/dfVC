@@ -21,7 +21,7 @@ interface Api {
 	rooms: Rooms;
 	endpoints: any;
 	newRoom(roomId: string): {};
-	newUser(roomId: string, userId: string): {};
+	getUser(roomId: string, userId: string): {connected: boolean, position?: {x: number, y: number, z: number}};
 	updateUserPosition(roomId: string, user: string, position: {}): void;
 }
 
@@ -88,14 +88,14 @@ const api: Api = {
 		api.rooms[roomId] = {}
 		return api.rooms[roomId];
 	},
-	newUser (roomId: string, userId: string): {} {
-		let targetRoom = api.rooms[roomId]; if (!targetRoom) targetRoom = api.newRoom(roomId);
-		targetRoom[userId] = {"connected": false};
-		return targetRoom[userId]
+	getUser (roomId: string, userId: string): {connected: boolean, position?: {x: number, y: number, z: number}} {
+		let targetRoom = api.rooms[roomId]; if (!targetRoom) targetRoom = api.newRoom(roomId); // gets room, creates if doesnt exist
+		let user = targetRoom[userId]; if (!user) user = targetRoom[userId] = {"connected": false};
+		return user
 	},
-	updateUserPosition (roomId: string, user: string, position: {x: number, y: number, z: number}) {
-		let targetRoom = api.rooms[roomId]; if (!targetRoom) targetRoom = api.newRoom(roomId); //gets room, creates if non existant
-		let targetUser = targetRoom[user]; if (!targetUser) targetUser = api.newUser(roomId, user);
+	updateUserPosition (roomId: string, userId: string, position: {x: number, y: number, z: number}) {
+		let user = api.getUser(roomId, userId);
+		user["position"] = position // does this work or is it like a reference to the user object or smth ifykwim??? idk test this later plz
 	}
 }
 
