@@ -2,6 +2,12 @@ import infoPage from "./public/index.html";
 import type { Server } from "bun";
 import api from './api'
 
+if (!process.env.JWT_SECRET) {
+	console.warn("missing JWT_SECRET from .env file, please go make that :3")
+	process.abort()
+} else {
+	console.log("JWT_SECRET is set")
+}
 console.log("running on http://localhost:8008")
 
 const server: Server = Bun.serve({

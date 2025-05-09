@@ -1,8 +1,32 @@
 import jwt, { type JwtPayload } from "jsonwebtoken";
 
+interface PlayerData {
+	x?: number;
+	y?: number;
+	z?: number;
+	name?: string;
+	mutedServerside?: boolean;
+	connected: boolean;
+	canHear?: string[]; //array of ids of other players they can hear
+	broadcastTo?: string[]; //array of ids of other players that can hear this player globally
+
+}
+interface RoomData {
+	[key: string]: PlayerData;
+}
+type Rooms = {
+	[plotId: string]: RoomData
+}
+interface Api {
+	rooms: Rooms;
+	counter: number;
+	endpoints: any;
+	setCounter(newCount: number): void;
+	newRoom(roomId: string): void;
+}
+
 const validDFIps = ['51.222.245.229'];
 let tokens = {} // uhh just an in memory token thingy nothing to see here... this ruins the point of jwt
-let counter = 0
 
 function getKeyByValue(object, value) {
 	return Object.keys(object).find(key => object[key] === value);
@@ -15,6 +39,8 @@ let endpoints = {
 		if (!headers['x-forwarded-for'] || !validDFIps.includes(headers['x-forwarded-for'])) return new Response("Unauthorised");
 		const splitInput = req.params.input.split('&')
 		const token = splitInput[0]
+		const tokenValidation: JwtPayload = jwt.verify(token, process.env.JWT_SECRET);
+		console.log(tokenValidation);
 		const plotId = getKeyByValue(tokens, token); // actually dont need to do this, decode the jwt token, then use that to index into tokens and check for equality
 		if (!plotId) return new Response("Unauthorised");
 		delete splitInput[0]
@@ -44,7 +70,7 @@ let endpoints = {
 		// console.log(matches)
 		const plotId = matches[2];
 		
-		const secretKey = process.env.JWT_SECRET || "asd";
+		const secretKey = process.env.JWT_SECRET;
 		if (!secretKey || !plotId) return new Response("some serverside error")
 		const token = jwt.sign({ id: plotId }, secretKey, {expiresIn: "14d"}); // generate the token for the plotId (should maybe have expiration or secondary validation)
 		tokens[plotId] = token
@@ -52,11 +78,15 @@ let endpoints = {
 	},
 }
 
-const api = {
+const api: Api = {
+	rooms: {"asd": {"asd": {"x": 123}}},
 	counter: 0,
 	endpoints: endpoints,
 	setCounter (newCount) {
 		api.counter = newCount
+	},
+	newRoom (roomId) {
+		api.rooms[roomId] = {}
 	}
 }
 
