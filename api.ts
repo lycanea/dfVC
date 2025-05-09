@@ -1,9 +1,7 @@
 import jwt, { type JwtPayload } from "jsonwebtoken";
 
 interface PlayerData {
-	x?: number;
-	y?: number;
-	z?: number;
+	position?: {x: number, y: number, z: number};
 	name?: string;
 	mutedServerside?: boolean;
 	connected: boolean;
@@ -28,7 +26,7 @@ interface Api {
 const validDFIps = ['51.222.245.229'];
 let tokens: {[key: string]: string} = {} // uhh just an in memory token thingy nothing to see here... this ruins the point of jwt
 const jwt_token: string | undefined = process.env.JWT_SECRET
-if (!jwt_token) {console.warn("invalid jwt_token");process.abort();}
+if (!jwt_token) {console.warn("invalid JWT_SECRET");process.abort();}
 
 let endpoints = {
 	// okay so input will be like token&asd=123,123,123&silly=456,456,456&meow=27,6,3
@@ -82,7 +80,7 @@ let endpoints = {
 }
 
 const api: Api = {
-	rooms: {"asd": {"asd": {"connected": false}}},
+	rooms: {"plotId": {"playerUUID": {"connected": false, "position": {"x": 0, "y": 0, "z": 0}}}},
 	endpoints: endpoints,
 	newRoom (roomId: string): {} {
 		api.rooms[roomId] = {}
