@@ -1,8 +1,8 @@
+if (!process.env.JWT_SECRET) {console.warn("missing JWT_SECRET from .env file, please go make that :3");process.abort();}
+
 import infoPage from "./public/index.html";
 import type { Server } from "bun";
 import api from './api'
-
-if (!process.env.JWT_SECRET) {console.warn("missing JWT_SECRET from .env file, please go make that :3");process.abort();}
 
 console.log("running on http://localhost:8008")
 
@@ -11,10 +11,6 @@ const server: Server = Bun.serve({
 	routes: {
 		"/": infoPage,
 		"/health": new Response("OK"),
-		"/other": (req: Request) => {
-			console.log(api.counter.toString())
-			return new Response(api.counter.toString());
-		},
 		...api.endpoints
 	},
 
