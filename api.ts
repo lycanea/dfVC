@@ -2,6 +2,7 @@ import jwt, { type JwtPayload } from "jsonwebtoken";
 
 const validDFIps = ['51.222.245.229'];
 let tokens = {} // uhh just an in memory token thingy nothing to see here... this ruins the point of jwt
+let counter = 0
 
 function getKeyByValue(object, value) {
 	return Object.keys(object).find(key => object[key] === value);
@@ -25,7 +26,12 @@ let endpoints = {
 			decoded[splitUser] = {x: userData[0], y: userData[1], z: userData[2]}
 		});
 		
-		console.log(`update req from ${plotId}: ${decoded}`)
+		console.log(`update req from ${plotId}`)
+		console.log(decoded)
+		return new Response();
+	},
+	"/api/increment": (req: Request) => {
+		api.setCounter(api.counter + 1)
 		return new Response();
 	},
 	"/api/v1/init": (req: Request) => {
@@ -46,4 +52,12 @@ let endpoints = {
 	},
 }
 
-export default {endpoints}
+const api = {
+	counter: 0,
+	endpoints: endpoints,
+	setCounter (newCount) {
+		api.counter = newCount
+	}
+}
+
+export default api

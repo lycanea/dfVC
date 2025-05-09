@@ -1,6 +1,6 @@
 import infoPage from "./public/index.html";
 import type { Server } from "bun";
-import api from './api.ts'
+import api from './api'
 
 console.log("running on http://localhost:8008")
 
@@ -9,6 +9,10 @@ const server: Server = Bun.serve({
 	routes: {
 		"/": infoPage,
 		"/health": new Response("OK"),
+		"/other": (req: Request) => {
+			console.log(api.counter.toString())
+			return new Response(api.counter.toString());
+		},
 		...api.endpoints
 	},
 
