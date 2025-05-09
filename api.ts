@@ -26,30 +26,31 @@ interface Api {
 }
 
 const validDFIps = ['51.222.245.229'];
-let tokens = {} // uhh just an in memory token thingy nothing to see here... this ruins the point of jwt
-
-function getKeyByValue(object, value) {
-	return Object.keys(object).find(key => object[key] === value);
-}
+let tokens: {[key: string]: string} = {} // uhh just an in memory token thingy nothing to see here... this ruins the point of jwt
+const jwt_token: string | undefined = process.env.JWT_SECRET
+if (!jwt_token) {console.warn("invalid jwt_token");process.abort();}
 
 let endpoints = {
 	// okay so input will be like token&asd=123,123,123&silly=456,456,456&meow=27,6,3
-	"/api/v1/update/:input": (req: Request) => {
+	"/api/v1/update/:input": (req: Request & {params: {input: string}}) => {
 		const headers = req.headers.toJSON()
 		if (!headers['x-forwarded-for'] || !validDFIps.includes(headers['x-forwarded-for'])) return new Response("Unauthorised");
-		const splitInput = req.params.input.split('&')
-		const token = splitInput[0]
-		const tokenValidation: JwtPayload = jwt.verify(token, process.env.JWT_SECRET);
-		console.log(tokenValidation);
-		const plotId = getKeyByValue(tokens, token); // actually dont need to do this, decode the jwt token, then use that to index into tokens and check for equality
-		if (!plotId) return new Response("Unauthorised");
+		const splitInput: string[] = req.params.input.split('&')
+		const token: string | undefined = splitInput[0]
+		if (!token) return new Response("Unauthorised");
+		const tokenValidation: JwtPayload | string = jwt.verify(token, jwt_token);
+		if (typeof tokenValidation === 'string' || tokenValidation instanceof String) return new Response("error parsing token");
+		const plotId: string = tokenValidation.id
+		if (!(token == tokens[plotId])) return new Response("Unauthorised"); // if token isnt valid and isnt in the tokens object then yk... die
 		delete splitInput[0]
 		
-		const decoded = {}
-		splitInput.forEach(function(value){
-			const splitUser = value.split('=')[0]
-			const userData = value.split('=')[1].split(',')
-			decoded[splitUser] = {x: userData[0], y: userData[1], z: userData[2]}
+		const decoded: {[key: string]: {x: number, y: number, z: number}}  = {}
+		splitInput.forEach(function(value: string){
+			const splitUser: string | undefined = value.split('=')[0]
+			if (!splitUser) return; //if no user... somehow, then uhhh skip this index (appease the typescript gods)
+			const userData: string[] | undefined = value.split('=')[1]?.split(',')
+			if (!userData || !userData[0] || !userData[1] || !userData[2]) return; // the... other check thing i fucking hate typescript maybe idk there has to be a better way to do this, this has like 100 if statement checks for not undefined in it so far
+			decoded[splitUser] = {x: parseFloat(userData[0]), y: parseFloat(userData[1]), z: parseFloat(userData[2])}
 		});
 		
 		console.log(`update req from ${plotId}`)
@@ -79,7 +80,7 @@ let endpoints = {
 }
 
 const api: Api = {
-	rooms: {"asd": {"asd": {"x": 123}}},
+	rooms: {"asd": {"asd": {"connected": false}}},
 	counter: 0,
 	endpoints: endpoints,
 	setCounter (newCount) {
