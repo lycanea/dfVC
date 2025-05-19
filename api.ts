@@ -45,7 +45,7 @@ let endpoints = {
 		if (typeof tokenValidation === 'string' || tokenValidation instanceof String) return new Response("error parsing token");
 		// request with valid token
 		const plotId: string = tokenValidation.id
-		if (!(token == tokens[plotId])) return new Response("Unauthorised"); // if token isnt valid and isnt in the tokens object then yk... die
+		if (!(token == tokens[plotId])) return new Response("Unauthorised"); // if token is valid but isnt in the tokens object then yk... die
 		// request with valid and correct token
 		delete splitInput[0]
 		
@@ -77,7 +77,6 @@ let endpoints = {
 		const headers = req.headers.toJSON()
 		if (!headers['x-forwarded-for'] || !validDFIps.includes(headers['x-forwarded-for']) || !headers['user-agent']) return new Response("Unauthorised");
 		// should be secure if behind a proxy
-		console.log(headers)
 
 		const matches = headers['user-agent'].match(/Hypercube\/([\d.]+) \((\d+), (.*)\)/) || [];
 		// console.log(matches)
@@ -87,12 +86,13 @@ let endpoints = {
 		if (!secretKey || !plotId) return new Response("some serverside error")
 		const token = jwt.sign({ id: plotId }, secretKey, {expiresIn: "14d"}); // generate the token for the plotId (should maybe have expiration or secondary validation)
 		tokens[plotId] = token
+		api.newRoom(plotId)
 		return new Response(`${token}|1`); // `token|latest api version` easily like... usable format on dfside
 	},
 }
 
 const api: Api = {
-	rooms: {"plotId": {"playerUUID": {"connected": false, "position": {"x": 0, "y": 0, "z": 0}, "name": "asd"}}},
+	rooms: {"100": {"playerUUID": {"connected": false, "position": {"x": 0, "y": 0, "z": 0}, "name": "asd"}}},
 	endpoints: endpoints,
 	newRoom (roomId: string): {} {
 		api.rooms[roomId] = {}

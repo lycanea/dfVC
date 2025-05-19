@@ -49,12 +49,23 @@ const server: Server = Bun.serve({
 			console.log("websocket connection opened")
 			ws.send("auth wait");
 			ws.data = { authed: false };
+
+			// Send data every second
+			ws.data.intervalId = setInterval(() => {
+				if (ws.readyState === WebSocket.OPEN) {
+					if (ws.data.authed) {
+						const muted = api.getUser(ws.data.roomId, ws.data.userId, false)?.mutedServerside
+						ws.send(muted !== undefined ? String(muted) : "undefined"); // Replace with your data
+					}
+				}
+			}, 1000);
 		},
 		close(ws) {
 			console.log("websocket connection closed")
 			if (ws.data.authed) {
 				api.disconnect(ws.data.roomId, ws.data.userId)
 			}
+			clearInterval(ws.data.intervalId);
 		},
 	},
 });
