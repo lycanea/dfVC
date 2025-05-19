@@ -21,9 +21,41 @@ const server: Server = Bun.serve({
 		return new Response("Upgrade failed", { status: 500 });
 	},
 	websocket: {
-		message(ws, message) {
-			ws.send(message);
-		}
+		async message(ws, message) {
+			if (ws.data.authed) {
+				return;
+			}
+			try {
+				const [roomId, userId] = String(message).split(',');
+				if (!roomId || !userId) {
+					ws.send("auth fail");
+					return;
+				}
+				const auth = api.connect(roomId, userId, ws)
+				if (!auth) {
+					ws.send("auth fail")
+					ws.close()
+				}
+				ws.send("auth success");
+				ws.data.roomId = roomId;
+				ws.data.userId = userId;
+				ws.data.authed = true;
+			} catch (error) {
+				console.error("Error processing message:", error);
+				ws.send("auth fail");
+			}
+		},
+		open(ws) {
+			console.log("websocket connection opened")
+			ws.send("auth wait");
+			ws.data = { authed: false };
+		},
+		close(ws) {
+			console.log("websocket connection closed")
+			if (ws.data.authed) {
+				api.disconnect(ws.data.roomId, ws.data.userId)
+			}
+		},
 	},
 });
 

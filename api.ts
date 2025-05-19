@@ -7,7 +7,7 @@ interface PlayerData {
 	connected: boolean;
 	canHear?: string[]; //array of ids of other players they can hear
 	broadcastTo?: string[]; //array of ids of other players that can hear this player globally
-
+	websocket?: any;
 }
 interface RoomData {
 	[key: string]: PlayerData;
@@ -19,10 +19,12 @@ interface Api {
 	rooms: Rooms;
 	endpoints: any;
 	newRoom(roomId: string): {};
-	getUser(roomId: string, userId: string): PlayerData;
+	getUser(roomId: string, userId: string, createIfNot?: boolean): PlayerData | undefined;
 	updateUserPosition(roomId: string, user: string, position: {}): void;
 	updateUsername(roomId: string, userId: string, name: string): void;
 	setMuted(roomId: string, userId: string, muted: boolean): void;
+	connect(roomId: string, userId: string, websocket: any): boolean;
+	disconnect(roomId: string, userId: string): boolean;
 }
 
 const validDFIps = ['51.222.245.229'];
@@ -96,22 +98,36 @@ const api: Api = {
 		api.rooms[roomId] = {}
 		return api.rooms[roomId];
 	},
-	getUser (roomId: string, userId: string): PlayerData {
-		let targetRoom = api.rooms[roomId]; if (!targetRoom) targetRoom = api.newRoom(roomId); // gets room, creates if doesnt exist
-		let user = targetRoom[userId]; if (!user) user = targetRoom[userId] = {"connected": false};
+	getUser (roomId: string, userId: string, createIfNot?: boolean): PlayerData | undefined {
+		let targetRoom = api.rooms[roomId]; if (!targetRoom) if (createIfNot) targetRoom = api.newRoom(roomId); else return undefined; // gets room, creates if doesnt exist
+		let user = targetRoom[userId]; if (!user && createIfNot) user = targetRoom[userId] = {"connected": false};
 		return user
 	},
 	updateUserPosition (roomId: string, userId: string, position: {x: number, y: number, z: number}) {
-		let user = api.getUser(roomId, userId);
-		user["position"] = position // does this work or is it like a reference to the user object or smth ifykwim??? idk test this later plz
+		let user = api.getUser(roomId, userId, true);
+		if (user) user["position"] = position // does this work or is it like a reference to the user object or smth ifykwim??? idk test this later plz
 	},
 	updateUsername (roomId: string, userId: string, name: string) {
-		let user = api.getUser(roomId, userId);
-		user["name"] = name
+		let user = api.getUser(roomId, userId, true);
+		if (user) user["name"] = name
 	},
 	setMuted (roomId: string, userId: string, muted: boolean) {
-		let user = api.getUser(roomId, userId);
-		user['mutedServerside'] = muted
+		let user = api.getUser(roomId, userId, true);
+		if (user) user['mutedServerside'] = muted
+	},
+	connect (roomId: string, userId: string, websocket: any) {
+		let user = api.getUser(roomId, userId, false);
+		if (!user) return false;
+		user['connected'] = true;
+		user['websocket'] = websocket;
+		return true;
+	},
+	disconnect (roomId: string, userId: string) {
+		let user = api.getUser(roomId, userId, false);
+		if (!user) return false;
+		user['connected'] = false;
+		user['websocket'] = undefined;
+		return true
 	}
 }
 
