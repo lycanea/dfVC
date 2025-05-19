@@ -19,8 +19,10 @@ interface Api {
 	rooms: Rooms;
 	endpoints: any;
 	newRoom(roomId: string): {};
-	getUser(roomId: string, userId: string): {connected: boolean, position?: {x: number, y: number, z: number}};
+	getUser(roomId: string, userId: string): PlayerData;
 	updateUserPosition(roomId: string, user: string, position: {}): void;
+	updateUsername(roomId: string, userId: string, name: string): void;
+	setMuted(roomId: string, userId: string, muted: boolean): void;
 }
 
 const validDFIps = ['51.222.245.229'];
@@ -39,7 +41,7 @@ let endpoints = {
 		//request with a token
 		const tokenValidation: JwtPayload | string = jwt.verify(token, jwt_token);
 		if (typeof tokenValidation === 'string' || tokenValidation instanceof String) return new Response("error parsing token");
-		// request with valid valid
+		// request with valid token
 		const plotId: string = tokenValidation.id
 		if (!(token == tokens[plotId])) return new Response("Unauthorised"); // if token isnt valid and isnt in the tokens object then yk... die
 		// request with valid and correct token
@@ -47,15 +49,23 @@ let endpoints = {
 		
 		// iterate over all the players in the request
 		splitInput.forEach(function(value: string){
-			// each input has an id so some can be excluded?
-			// maybe stupid idk, just make the data efficient enough thats its okay to send it all over every time
-			// userUUID=1:x,2:y,3:z,4:name,5:canTalk,6:teamId
-			// asd     =1:1,2:2,3:3,4:asd ,5:1      ,6:2763
 			const splitUser: string | undefined = value.split('=')[0]
 			if (!splitUser) return; //if no user... somehow, then uhhh skip this index (appease the typescript gods)
 			const userData: string[] | undefined = value.split('=')[1]?.split(',')
-			if (!userData || !userData[0] || !userData[1] || !userData[2]) return; // the... other check thing i fucking hate typescript maybe idk there has to be a better way to do this, this has like 100 if statement checks for not undefined in it so far
-			api.updateUserPosition(plotId, splitUser, {x: parseFloat(userData[0]), y: parseFloat(userData[1]), z: parseFloat(userData[2])})
+			if (!userData) return; // the... other check thing i fucking hate typescript maybe idk there has to be a better way to do this, this has like 100 if statement checks for not undefined in it so far
+			let processedUserData: {[key: string]: string} = {}
+			userData.forEach(function(data: string){
+				const key: string[] | undefined = data.split(':');
+				if (!key || !key[0] || !key[1]) return;
+				processedUserData[key[0]] = key[1];
+			});
+
+			// data is now processed
+			// 0=x, 1=y, 2=z, 3=name, 4=muted
+
+			if (processedUserData[0] && processedUserData[1] && processedUserData[2]) api.updateUserPosition(plotId, splitUser, {x: parseFloat(processedUserData[0]), y: parseFloat(processedUserData[1]), z: parseFloat(processedUserData[2])});
+			if (processedUserData[3]) api.updateUsername(plotId, splitUser, processedUserData[3]);
+			if (processedUserData[4]) api.setMuted(plotId, splitUser, processedUserData[4] == "true" || processedUserData[4] == "1");
 		});
 		
 		console.log(`update req from ${plotId}`)
@@ -80,13 +90,13 @@ let endpoints = {
 }
 
 const api: Api = {
-	rooms: {"plotId": {"playerUUID": {"connected": false, "position": {"x": 0, "y": 0, "z": 0}}}},
+	rooms: {"plotId": {"playerUUID": {"connected": false, "position": {"x": 0, "y": 0, "z": 0}, "name": "asd"}}},
 	endpoints: endpoints,
 	newRoom (roomId: string): {} {
 		api.rooms[roomId] = {}
 		return api.rooms[roomId];
 	},
-	getUser (roomId: string, userId: string): {connected: boolean, position?: {x: number, y: number, z: number}} {
+	getUser (roomId: string, userId: string): PlayerData {
 		let targetRoom = api.rooms[roomId]; if (!targetRoom) targetRoom = api.newRoom(roomId); // gets room, creates if doesnt exist
 		let user = targetRoom[userId]; if (!user) user = targetRoom[userId] = {"connected": false};
 		return user
@@ -94,6 +104,14 @@ const api: Api = {
 	updateUserPosition (roomId: string, userId: string, position: {x: number, y: number, z: number}) {
 		let user = api.getUser(roomId, userId);
 		user["position"] = position // does this work or is it like a reference to the user object or smth ifykwim??? idk test this later plz
+	},
+	updateUsername (roomId: string, userId: string, name: string) {
+		let user = api.getUser(roomId, userId);
+		user["name"] = name
+	},
+	setMuted (roomId: string, userId: string, muted: boolean) {
+		let user = api.getUser(roomId, userId);
+		user['mutedServerside'] = muted
 	}
 }
 
