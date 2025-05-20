@@ -1,15 +1,19 @@
 if (!process.env.JWT_SECRET) {console.warn("missing JWT_SECRET from .env file, please go make that :3");process.abort();}
 
 import infoPage from "./public/index.html";
+import voicePage from "./public/voice.html";
+const clientJs = await Bun.file("./public/client.js").text(); // Load the client.js file
 import type { Server } from "bun";
-import api from './api'
+import api from './api';
 
-console.log("running on http://localhost:8008")
+console.log("running on http://localhost:8008");
 
 const server: Server = Bun.serve({
 	port: 8008,
 	routes: {
 		"/": infoPage,
+		"/voice": voicePage,
+		"/client": new Response(clientJs, { headers: { "Content-Type": "application/javascript" } }), // Serve the actual client.js content
 		"/health": new Response("OK"),
 		...api.endpoints
 	},
@@ -31,10 +35,10 @@ const server: Server = Bun.serve({
 					ws.send("auth fail");
 					return;
 				}
-				const auth = api.connect(roomId, userId, ws)
+				const auth = api.connect(roomId, userId, ws);
 				if (!auth) {
-					ws.send("auth fail")
-					ws.close()
+					ws.send("auth fail");
+					ws.close();
 				}
 				ws.send("auth success");
 				ws.data.roomId = roomId;
@@ -46,7 +50,7 @@ const server: Server = Bun.serve({
 			}
 		},
 		open(ws) {
-			console.log("websocket connection opened")
+			console.log("websocket connection opened");
 			ws.send("auth wait");
 			ws.data = { authed: false };
 
@@ -54,16 +58,16 @@ const server: Server = Bun.serve({
 			ws.data.intervalId = setInterval(() => {
 				if (ws.readyState === WebSocket.OPEN) {
 					if (ws.data.authed) {
-						const muted = api.getUser(ws.data.roomId, ws.data.userId, false)?.mutedServerside
+						const muted = api.getUser(ws.data.roomId, ws.data.userId, false)?.mutedServerside;
 						ws.send(muted !== undefined ? String(muted) : "undefined"); // Replace with your data
 					}
 				}
 			}, 1000);
 		},
 		close(ws) {
-			console.log("websocket connection closed")
+			console.log("websocket connection closed");
 			if (ws.data.authed) {
-				api.disconnect(ws.data.roomId, ws.data.userId)
+				api.disconnect(ws.data.roomId, ws.data.userId);
 			}
 			clearInterval(ws.data.intervalId);
 		},
