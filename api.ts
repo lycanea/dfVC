@@ -78,8 +78,7 @@ let endpoints = {
 		if (!headers['x-forwarded-for'] || !validDFIps.includes(headers['x-forwarded-for']) || !headers['user-agent']) return new Response("Unauthorised");
 		// should be secure if behind a proxy
 
-		const matches = headers['user-agent'].match(/Hypercube\/([\d.]+) \((\d+), (.*)\)/) || [];
-		// console.log(matches)
+		const matches = headers['user-agent'].match(/Hypercube\/([\d.]+) \((\d+), (.*)\)/) || []; // `Hypercube/7.2 (100, asd)` is valid
 		const plotId = matches[2];
 		
 		const secretKey = process.env.JWT_SECRET;
@@ -105,7 +104,7 @@ const api: Api = {
 	},
 	updateUserPosition (roomId: string, userId: string, position: {x: number, y: number, z: number}) {
 		let user = api.getUser(roomId, userId, true);
-		if (user) user["position"] = position // does this work or is it like a reference to the user object or smth ifykwim??? idk test this later plz
+		if (user) user["position"] = position
 	},
 	updateUsername (roomId: string, userId: string, name: string) {
 		let user = api.getUser(roomId, userId, true);

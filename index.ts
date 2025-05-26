@@ -5,6 +5,7 @@ import voicePage from "./public/voice.html";
 const clientJs = await Bun.file("./public/client.js").text(); // Load the client.js file
 import type { Server } from "bun";
 import api from './api';
+import { websocketHandlers } from './websocket';
 
 console.log("running on http://localhost:8008");
 
@@ -24,54 +25,30 @@ const server: Server = Bun.serve({
 		}
 		return new Response("Upgrade failed", { status: 500 });
 	},
-	websocket: {
-		async message(ws, message) {
-			if (ws.data.authed) {
-				return;
-			}
-			try {
-				const [roomId, userId] = String(message).split(',');
-				if (!roomId || !userId) {
-					ws.send("auth fail");
-					return;
-				}
-				const auth = api.connect(roomId, userId, ws);
-				if (!auth) {
-					ws.send("auth fail");
-					ws.close();
-				}
-				ws.send("auth success");
-				ws.data.roomId = roomId;
-				ws.data.userId = userId;
-				ws.data.authed = true;
-			} catch (error) {
-				console.error("Error processing message:", error);
-				ws.send("auth fail");
-			}
-		},
-		open(ws) {
-			console.log("websocket connection opened");
-			ws.send("auth wait");
-			ws.data = { authed: false };
-
-			// Send data every second
-			ws.data.intervalId = setInterval(() => {
-				if (ws.readyState === WebSocket.OPEN) {
-					if (ws.data.authed) {
-						const muted = api.getUser(ws.data.roomId, ws.data.userId, false)?.mutedServerside;
-						ws.send(muted !== undefined ? String(muted) : "undefined"); // Replace with your data
-					}
-				}
-			}, 1000);
-		},
-		close(ws) {
-			console.log("websocket connection closed");
-			if (ws.data.authed) {
-				api.disconnect(ws.data.roomId, ws.data.userId);
-			}
-			clearInterval(ws.data.intervalId);
-		},
-	},
+	websocket: websocketHandlers,
 });
+
+function printStatus() {
+	console.clear();
+	console.log("=== Server Status ===");
+	console.log("Listening on http://localhost:8008");
+	console.log("Connected WebSockets:", server.pendingWebSockets);
+	console.log("Active Rooms:", Object.keys(api.rooms).length);
+
+	for (const [roomName, room] of Object.entries(api.rooms)) {
+		const coloredUsers: string[] = [];
+		for (const [userId, user] of Object.entries(room)) {
+			if (user.connected) {
+				coloredUsers.push(`\x1b[32m${userId}\x1b[0m`);
+			} else {
+				coloredUsers.push(`\x1b[90m${userId}\x1b[0m`);
+			}
+		}
+		console.log(`Room "${roomName}":`, coloredUsers.join(", "));
+	}
+}
+
+setInterval(printStatus, 2000);
+
 
 export { server };
