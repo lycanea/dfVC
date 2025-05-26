@@ -1,3 +1,4 @@
+import { logger } from '.';
 import api from './api';
 
 export const websocketHandlers = {
@@ -16,12 +17,13 @@ export const websocketHandlers = {
 				ws.send("auth fail");
 				ws.close();
 			}
+			logger(`WebSocket connected: ${userId} in room ${roomId}`);
 			ws.send("auth success");
 			ws.data.roomId = roomId;
 			ws.data.userId = userId;
 			ws.data.authed = true;
 		} catch (error) {
-			console.error("Error processing message:", error);
+			logger("Error processing message: " + error);
 			ws.send("auth fail");
 		}
 	},
@@ -40,6 +42,7 @@ export const websocketHandlers = {
 	},
 	close(ws) {
 		if (ws.data.authed) {
+			logger(`WebSocket disconnected: ${ws.data.userId} from room ${ws.data.roomId}`);
 			api.disconnect(ws.data.roomId, ws.data.userId);
 		}
 		clearInterval(ws.data.intervalId);

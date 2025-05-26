@@ -6,8 +6,22 @@ const clientJs = await Bun.file("./public/client.js").text(); // Load the client
 import type { Server } from "bun";
 import api from './api';
 import { websocketHandlers } from './websocket';
+import { appendFile } from "node:fs";
 
-console.log("running on http://localhost:8008");
+let logLines: string[] = [];
+const LOG_FILE = "./server.log";
+
+const logger = (message: string) => {
+	if (logLines.length >= 100) {
+		logLines.shift();
+	}
+	logLines.push(message);
+
+	// Bun.write(LOG_FILE, message + "\n", { mode: "a" });
+	appendFile(LOG_FILE, message + "\n", err => {
+		if (err) throw err;
+	});
+}
 
 const server: Server = Bun.serve({
 	port: 8008,
@@ -46,9 +60,16 @@ function printStatus() {
 		}
 		console.log(`Room "${roomName}":`, coloredUsers.join(", "));
 	}
+	const consoleHeight = process.stdout.rows || 24;
+	console.log("\nRecent Logs:");
+	const headerLines = 7 + Object.keys(api.rooms).length; // 6 lines before logs + 1 per room
+	const availableLogLines = Math.max(consoleHeight - headerLines, 0);
+	const logsToShow = logLines.slice(-availableLogLines).reverse();
+	for (const line of logsToShow) {
+		console.log(line);
+	}
 }
 
-setInterval(printStatus, 2000);
-
-
-export { server };
+setInterval(printStatus, 500);
+logger("Started Server");
+export { server, logger };
