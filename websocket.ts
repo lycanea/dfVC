@@ -1,10 +1,12 @@
+import type { ServerWebSocket } from 'bun';
 import { logger } from '.';
 import api from './api';
 
 export const websocketHandlers = {
-	async message(ws: any, message: string | Buffer) {
+	async message(ws: ServerWebSocket, message: string | Buffer) {
 		if (!ws.data.authed) {
 			// Expecting auth message as JSON: { type: "auth", roomId, userId }
+			logger("Received message before auth: " + message);
 			if (typeof message !== "string") {
 				logger("Received non-string message before auth");
 				ws.send(JSON.stringify({ type: "auth", status: "fail" }));
@@ -41,16 +43,22 @@ export const websocketHandlers = {
 
 			// Broadcast to other clients in the same room
 			const players = api.rooms[ws.data.roomId];
-			if (Array.isArray(players)) {
-				for (const player of players) {
-					if (player.connected && player.websocket && player.websocket.readyState === player.websocket.OPEN) {
-						player.websocket.send(processedAudio);
+			if (players && typeof players === "object") {
+				for (const playerId in players) {
+					const player = players[playerId];
+					if (
+						player.connected &&
+						player.websocket &&
+						player.websocket.readyState === 1
+						// playerId !== ws.data.userId
+					) {
+						player.websocket.send(JSON.stringify({type: "audio", data: processedAudio }));
 					}
 				}
 			}
 		}
 	},
-	open(ws: any) {
+	open(ws: ServerWebSocket) {
 		ws.send(JSON.stringify({ type: "auth", status: "wait" }));
 		ws.data = { authed: false };
 
@@ -61,7 +69,7 @@ export const websocketHandlers = {
 			}
 		}, 1000);
 	},
-	close(ws: any) {
+	close(ws: ServerWebSocket) {
 		if (ws.data.authed) {
 			logger(`WebSocket disconnected: ${ws.data.userId} from room ${ws.data.roomId}`);
 			api.disconnect(ws.data.roomId, ws.data.userId);

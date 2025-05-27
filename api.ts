@@ -8,7 +8,7 @@ interface PlayerData {
 	connected: boolean;
 	canHear?: string[]; //array of ids of other players they can hear
 	broadcastTo?: string[]; //array of ids of other players that can hear this player globally
-	websocket?: any;
+	websocket?: ServerWebSocket;
 }
 interface RoomData {
 	[key: string]: PlayerData;
@@ -24,7 +24,7 @@ interface Api {
 	updateUserPosition(roomId: string, user: string, position: {}): void;
 	updateUsername(roomId: string, userId: string, name: string): void;
 	setMuted(roomId: string, userId: string, muted: boolean): void;
-	connect(roomId: string, userId: string, websocket: any): boolean;
+	connect(roomId: string, userId: string, websocket: ServerWebSocket): boolean;
 	disconnect(roomId: string, userId: string): boolean;
 }
 
@@ -92,7 +92,12 @@ let endpoints = {
 }
 
 const api: Api = {
-	rooms: {"100": {"playerUUID": {"connected": false, "position": {"x": 0, "y": 0, "z": 0}, "name": "asd"}}},
+	rooms: {
+		"100": {
+			"playerUUID": { "connected": false, "position": { "x": 0, "y": 0, "z": 0 }, "name": "asd" },
+			"playerUUID2": { "connected": false, "position": { "x": 0, "y": 0, "z": 0 }, "name": "asd" }
+		}
+	},
 	endpoints: endpoints,
 	newRoom (roomId: string): {} {
 		api.rooms[roomId] = {}
@@ -115,7 +120,7 @@ const api: Api = {
 		let user = api.getUser(roomId, userId, true);
 		if (user) user['mutedServerside'] = muted
 	},
-	connect (roomId: string, userId: string, websocket: any) {
+	connect (roomId: string, userId: string, websocket: ServerWebSocket) {
 		let user = api.getUser(roomId, userId, false);
 		if (!user) return false;
 		user['connected'] = true;

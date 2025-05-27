@@ -29,6 +29,12 @@ const server: Server = Bun.serve({
 		"/": infoPage,
 		"/voice": voicePage,
 		"/client": new Response(clientJs, { headers: { "Content-Type": "application/javascript" } }), // Serve the actual client.js content
+		"/icon.png": new Response(await Bun.file("./public/icon.png").arrayBuffer(), {
+			headers: { "Content-Type": "image/png" }
+		}),
+		"/iconTalking.png": new Response(await Bun.file("./public/iconTalking.png").arrayBuffer(), {
+			headers: { "Content-Type": "image/png" }
+		}),
 		"/health": new Response("OK"),
 		...api.endpoints
 	},
