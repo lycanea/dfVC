@@ -8,39 +8,53 @@ window.addEventListener('load', () => {
 	let audioStream = null;
 	let audioProcessor = null;
 	let isTalking = false;
-	const TALKING_THRESHOLD = 0.02; // Adjust as needed
+	const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+	const TALKING_THRESHOLD = 0.0;
 	const FAVICON_DEFAULT = 'icon.png';
 	const FAVICON_TALKING = 'iconTalking.png';
 
-	// --- Visualizer Bar Setup ---
-	const visualizer = document.createElement('div');
-	visualizer.style.position = 'fixed';
+	let noiseSuppression = true;
+	let muted = true;
+	const noiseSuppressionToggle = document.getElementById('noiseSuppressionToggle');
+	noiseSuppressionToggle.addEventListener('click', () => {
+		noiseSuppression = !noiseSuppression
+		noiseSuppressionToggle.textContent = noiseSuppression ? 'Disable Noise Suppression' : 'Enable Noise Suppression';
+		restartAudioStream();
+	});
+
+	const muteToggle = document.getElementById('muteToggle');
+	muteToggle.addEventListener('click', () => {
+		muted = !muted
+		muteToggle.textContent = muted ? 'Enable Microphone' : 'Disable Microphone';
+	});
+
+	function restartAudioStream() {
+		if (audioStream) {
+			audioStream.getTracks().forEach(track => track.stop());
+			audioStream = null;
+		}
+		if (audioProcessor) {
+			audioProcessor.disconnect();
+			audioProcessor = null;
+		}
+		startSendingAudio();
+	}
+
+	const visualizer = document.getElementById('visualizer');
+	// visualizer.style.position = 'fixed';
+	visualizer.style.margin = '10px 0px'
 	visualizer.style.top = '10px';
-	visualizer.style.left = '10px';
-	visualizer.style.width = '200px';
-	visualizer.style.height = '10px';
+	// visualizer.style.left = '10px';
+	visualizer.style.width = '30px';
+	visualizer.style.height = '300px';
 	visualizer.style.background = '#eee';
 	visualizer.style.border = '1px solid #ccc';
-	visualizer.style.zIndex = 1000;
 
-	const bar = document.createElement('div');
-	bar.style.height = '100%';
-	bar.style.width = '0%';
+	const bar = document.getElementById('bar');
+	bar.style.height = '0%';
+	bar.style.width = '100%';
 	bar.style.background = '#4caf50';
-	bar.style.transition = 'width 0.05s linear';
-
-	visualizer.appendChild(bar);
-	document.body.appendChild(visualizer);
-	// --- End Visualizer Bar Setup ---
-
-	function base64ToArrayBuffer(base64) {
-		var binaryString = atob(base64);
-		var bytes = new Uint8Array(binaryString.length);
-		for (var i = 0; i < binaryString.length; i++) {
-			bytes[i] = binaryString.charCodeAt(i);
-		}
-		return bytes.buffer;
-}
+	bar.style.transition = 'height 0.05s linear';
 
 	function setFavicon(src) {
 		let link = document.querySelector("link[rel~='icon']");
@@ -66,6 +80,26 @@ window.addEventListener('load', () => {
 
 	socket.onmessage = (event) => {
 		// console.log('Message received from server:', event.data);
+		if (event.data instanceof Blob) {
+			const reader = new FileReader();
+			reader.onload = () => {
+				const arrayBuffer = reader.result;
+				const audioData = new Int16Array(arrayBuffer);
+				const playbackBuffer = audioContext.createBuffer(1, audioData.length, audioContext.sampleRate);
+				const float32PlaybackBuffer = new Float32Array(audioData.length);
+				for (let i = 0; i < audioData.length; i++) {
+					float32PlaybackBuffer[i] = audioData[i] / 32768; // Convert Int16 to Float32
+				}
+				playbackBuffer.copyToChannel(float32PlaybackBuffer, 0);
+
+				const playbackSource = audioContext.createBufferSource();
+				playbackSource.buffer = playbackBuffer;
+				playbackSource.connect(audioContext.destination);
+				playbackSource.start();
+			};
+			reader.readAsArrayBuffer(event.data);
+			return
+		}
 		let data = JSON.parse(event.data);
 		if (data.type === 'auth') {
 			switch (data.status) {
@@ -96,35 +130,6 @@ window.addEventListener('load', () => {
 			console.error('Error from server:', data.message);
 			alert(data.message);
 			socket.close();
-		} else if (data.type === 'audio') {
-			console.log('Update received:', data.data);
-
-			let audioDataArr = data.data;
-			if (data.data && Array.isArray(data.data)) {
-				audioDataArr = data.data;
-			} else if (data.data && data.data.type === 'Buffer' && Array.isArray(data.data.data)) {
-				audioDataArr = data.data.data;
-				console.log(data.da)
-			}
-
-			const audioData = new Int16Array(audioDataArr);
-
-			if (audioData.length === 0) {
-				console.warn('Received empty audio buffer, skipping playback.');
-				return;
-			}
-
-			const audioContext = window._receivedAudioContext || (window._receivedAudioContext = new (window.AudioContext || window.webkitAudioContext)());
-			const float32Buffer = new Float32Array(audioData.length);
-			for (let i = 0; i < audioData.length; i++) {
-				float32Buffer[i] = audioData[i] / 32768;
-			}
-			const buffer = audioContext.createBuffer(1, float32Buffer.length, audioContext.sampleRate);
-			buffer.copyToChannel(float32Buffer, 0);
-			const source = audioContext.createBufferSource();
-			source.buffer = buffer;
-			source.connect(audioContext.destination);
-			source.start();
 		}
 	};
 
@@ -143,46 +148,44 @@ window.addEventListener('load', () => {
 			audioStream = null;
 		}
 		setFavicon(FAVICON_DEFAULT);
-		bar.style.width = '0%'; // Reset visualizer
+		bar.style.height = '0%';
 	};
 
 	function startSendingAudio() {
 		if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-		navigator.mediaDevices.getUserMedia({ audio: true })
+		navigator.mediaDevices.getUserMedia({ audio: { noiseSuppression: noiseSuppression } })
 			.then((stream) => {
 				audioStream = stream;
 				const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 				const source = audioContext.createMediaStreamSource(stream);
 
-				audioProcessor = audioContext.createScriptProcessor(4096, 1, 1);
+				audioProcessor = audioContext.createScriptProcessor(8192, 1, 1);
 				audioProcessor.onaudioprocess = function (e) {
+					if (muted) return;
 					if (!authed || socket.readyState !== WebSocket.OPEN) return;
 					const input = e.inputBuffer.getChannelData(0);
 
-					// Calculate RMS (root mean square) volume
+					// caclulate volume
 					let sum = 0;
 					for (let i = 0; i < input.length; i++) {
 						sum += input[i] * input[i];
 					}
 					const rms = Math.sqrt(sum / input.length);
 
-					// --- Update visualizer bar ---
-					const percent = Math.min(1, rms * 5); // scale for visibility
-					bar.style.width = (percent * 100) + '%';
-					// --- End visualizer bar update ---
+					const percent = Math.min(1, rms * 5);
+					bar.style.height = (percent * 100) + '%';
 
-					if (rms > TALKING_THRESHOLD) {
+					if (rms >= TALKING_THRESHOLD) {
 						if (!isTalking) {
 							isTalking = true;
 							setFavicon(FAVICON_TALKING);
 						}
-						// Convert Float32Array to Int16Array for smaller size
 						const int16Buffer = new Int16Array(input.length);
 						for (let i = 0; i < input.length; i++) {
 							let s = Math.max(-1, Math.min(1, input[i]));
 							int16Buffer[i] = s < 0 ? s * 0x8000 : s * 0x7FFF;
 						}
-						socket.send(int16Buffer.buffer);
+						socket.send(int16Buffer);
 					} else {
 						if (isTalking) {
 							isTalking = false;
@@ -193,9 +196,6 @@ window.addEventListener('load', () => {
 
 				source.connect(audioProcessor);
 				audioProcessor.connect(audioContext.destination);
-
-				// Optionally play back locally
-				
 			})
 			.catch((error) => {
 				console.error('Error accessing media devices:', error);

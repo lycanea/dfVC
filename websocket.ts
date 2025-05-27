@@ -36,23 +36,56 @@ export const websocketHandlers = {
 			return;
 		}
 
-		// Handle audio data (binary or base64)
 		if (Buffer.isBuffer(message)) {
-			// Process audio data here if needed
-			const processedAudio = message; // Replace with actual processing
-
-			// Broadcast to other clients in the same room
 			const players = api.rooms[ws.data.roomId];
+			if (!players) {
+				logger("Players object is undefined for room: " + ws.data.roomId);
+				return;
+			}
+			const self = players[ws.data.userId];
+			if (self?.mutedServerside) {
+				return;
+			}
 			if (players && typeof players === "object") {
 				for (const playerId in players) {
 					const player = players[playerId];
 					if (
+						player &&
+						ws.data &&
 						player.connected &&
 						player.websocket &&
-						player.websocket.readyState === 1
-						// playerId !== ws.data.userId
+						player.websocket.readyState === 1 &&
+						playerId !== ws.data.userId
 					) {
-						player.websocket.send(JSON.stringify({type: "audio", data: processedAudio }));
+						if (self?.broadcastTo?.includes(playerId)) {
+							player.websocket.send(message);
+							continue;
+						}
+
+						let playerPosition = player.position || { x: 0, y: 0, z: 0 };
+						let selfPosition = self.position || { x: 0, y: 0, z: 0 };
+
+						let distance = Math.sqrt(
+							Math.pow(playerPosition.x - selfPosition.x, 2) +
+							Math.pow(playerPosition.y - selfPosition.y, 2) +
+							Math.pow(playerPosition.z - selfPosition.z, 2)
+						);
+
+						const maxDistance = 15;
+						if (distance > maxDistance) {
+							continue;
+						}
+
+						let processed = Buffer.allocUnsafe(message.length);
+						let falloff = 1 - distance / maxDistance;
+						logger(falloff.toString())
+						for (let i = 0; i < processed.length; i += 2) {
+							let sample = message.readInt16LE(i);
+							let adjustedSample = sample * falloff;
+							processed.writeInt16LE(Math.max(Math.min(adjustedSample, 32767), -32768), i);
+						}
+
+						player.websocket.send(processed);
 					}
 				}
 			}

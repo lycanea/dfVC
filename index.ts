@@ -24,6 +24,7 @@ const logger = (message: string) => {
 }
 
 const server: Server = Bun.serve({
+	development: false,
 	port: 8008,
 	routes: {
 		"/": infoPage,

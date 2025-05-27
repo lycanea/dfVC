@@ -71,7 +71,7 @@ let endpoints = {
 			if (processedUserData[4]) api.setMuted(plotId, splitUser, processedUserData[4] == "true" || processedUserData[4] == "1");
 		});
 		
-		logger(`update req from ${plotId} with data: ${JSON.stringify(splitInput)}`);
+		// logger(`update req from ${plotId} with data: ${JSON.stringify(splitInput)}`);
 		return new Response();
 	},
 	"/api/v1/init": (req: Request) => {
